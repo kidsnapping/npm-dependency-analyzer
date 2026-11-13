@@ -2,6 +2,7 @@
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Set;
 
 public class Main {
     private static final String CONFIG_FILE = "config.ini";
@@ -12,17 +13,15 @@ public class Main {
                 : Path.of(CONFIG_FILE);
 
         ConfigReader configReader = new ConfigReader();
-        NpmRepository npmRepository = new NpmRepository();
 
         try {
             Config config = configReader.read(configPath);
 
-            printConfig(config);
-
-            Map<String, String> dependencies =
-                    npmRepository.getDependencies(config);
-
-            printDependencies(dependencies);
+            if (config.isTestMode()) {
+                runTestMode(config);
+            } else {
+                runNpmMode(config);
+            }
         } catch (IOException exception) {
             System.err.println("Error:");
             System.err.println(exception.getMessage());
@@ -31,30 +30,35 @@ public class Main {
             Thread.currentThread().interrupt();
             System.err.println("Request was interrupted");
             System.exit(1);
+        } catch (IllegalArgumentException exception) {
+            System.err.println("Error:");
+            System.err.println(exception.getMessage());
+            System.exit(1);
         }
     }
 
-    private static void printConfig(Config config) {
-        System.out.println("package_name = " + config.getPackageName());
-        System.out.println("repository = " + config.getRepository());
-        System.out.println("test_mode = " + config.isTestMode());
-        System.out.println("version = " + config.getVersion());
-        System.out.println("max_depth = " + config.getMaxDepth());
+    private static void runTestMode(Config config) throws IOException {
+        GraphTestReader reader = new GraphTestReader();
+        DependencyGraph dependencyGraph = new DependencyGraph();
+
+        Map<String, Set<String>> sourceGraph =
+                reader.read(Path.of(config.getRepository()));
+
+        dependencyGraph.build(
+                sourceGraph,
+                config.getPackageName(),
+                config.getMaxDepth()
+        );
+
+        dependencyGraph.print();
     }
 
-    private static void printDependencies(Map<String, String> dependencies) {
-        System.out.println();
-        System.out.println("Direct dependencies:");
+    private static void runNpmMode(Config config)
+            throws IOException, InterruptedException {
+        NpmRepository repository = new NpmRepository();
+        DependencyGraph dependencyGraph = new DependencyGraph();
 
-        if (dependencies.isEmpty()) {
-            System.out.println("No dependencies found");
-            return;
-        }
-
-        for (Map.Entry<String, String> dependency : dependencies.entrySet()) {
-            System.out.println(
-                    dependency.getKey() + " : " + dependency.getValue()
-            );
-        }
+        dependencyGraph.buildFromNpm(config, repository);
+        dependencyGraph.print();
     }
 }

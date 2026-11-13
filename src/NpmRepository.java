@@ -14,27 +14,39 @@ import java.util.regex.Pattern;
 public class NpmRepository {
     public Map<String, String> getDependencies(Config config)
             throws IOException, InterruptedException {
-        String json;
-
         if (config.isTestMode()) {
-            json = Files.readString(Path.of(config.getRepository()));
-        } else {
-            json = downloadPackageInfo(config);
+            String json = Files.readString(Path.of(config.getRepository()));
+            return parseDependencies(json);
         }
 
+        return getDependencies(
+                config.getPackageName(),
+                config.getVersion(),
+                config.getRepository()
+        );
+    }
+
+    public Map<String, String> getDependencies(
+            String packageName,
+            String version,
+            String repository
+    ) throws IOException, InterruptedException {
+        String exactVersion = normalizeVersion(version);
+        String json = downloadPackageInfo(packageName, exactVersion, repository);
         return parseDependencies(json);
     }
 
-    private String downloadPackageInfo(Config config)
-            throws IOException, InterruptedException {
-        String repository = config.getRepository();
-
+    private String downloadPackageInfo(
+            String packageName,
+            String version,
+            String repository
+    ) throws IOException, InterruptedException {
         while (repository.endsWith("/")) {
             repository = repository.substring(0, repository.length() - 1);
         }
 
-        String packageName = config.getPackageName().replace("/", "%2F");
-        String url = repository + "/" + packageName + "/" + config.getVersion();
+        String encodedName = packageName.replace("/", "%2F");
+        String url = repository + "/" + encodedName + "/" + version;
 
         HttpClient client = HttpClient.newHttpClient();
 
@@ -51,11 +63,26 @@ public class NpmRepository {
 
         if (response.statusCode() != 200) {
             throw new IOException(
-                    "Repository returned HTTP status: " + response.statusCode()
+                    "Cannot get " + packageName + "@" + version
+                            + ". HTTP status: " + response.statusCode()
             );
         }
 
         return response.body();
+    }
+
+    private String normalizeVersion(String version) throws IOException {
+        String normalized = version.trim();
+
+        if (normalized.startsWith("^") || normalized.startsWith("~")) {
+            normalized = normalized.substring(1);
+        }
+
+        if (!normalized.matches("\\d+\\.\\d+\\.\\d+")) {
+            throw new IOException("Unsupported dependency version: " + version);
+        }
+
+        return normalized;
     }
 
     private Map<String, String> parseDependencies(String json) throws IOException {
@@ -81,9 +108,10 @@ public class NpmRepository {
         Matcher dependencyMatcher = dependencyPattern.matcher(dependenciesText);
 
         while (dependencyMatcher.find()) {
-            String name = dependencyMatcher.group(1);
-            String version = dependencyMatcher.group(2);
-            dependencies.put(name, version);
+            dependencies.put(
+                    dependencyMatcher.group(1),
+                    dependencyMatcher.group(2)
+            );
         }
 
         if (!dependenciesText.isBlank() && dependencies.isEmpty()) {
