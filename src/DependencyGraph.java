@@ -56,13 +56,7 @@ public class DependencyGraph {
         ));
         visited.add(config.getPackageName());
 
-        processNpmQueue(
-                config,
-                repository,
-                queue,
-                visited,
-                0
-        );
+        processNpmQueue(config, repository, queue, visited, 0);
     }
 
     private void processTestQueue(
@@ -119,7 +113,6 @@ public class DependencyGraph {
         }
 
         QueueItem current = queue.get(index);
-
         addPackage(current.packageName);
 
         if (current.depth < config.getMaxDepth()) {
@@ -145,13 +138,7 @@ public class DependencyGraph {
             }
         }
 
-        processNpmQueue(
-                config,
-                repository,
-                queue,
-                visited,
-                index + 1
-        );
+        processNpmQueue(config, repository, queue, visited, index + 1);
     }
 
     public void print() {
@@ -163,6 +150,71 @@ public class DependencyGraph {
                     entry.getKey() + " -> " + entry.getValue()
             );
         }
+    }
+
+    public void printReverseDependencies(String packageName) {
+        if (!graph.containsKey(packageName)) {
+            throw new IllegalArgumentException(
+                    "Package not found in dependency graph: " + packageName
+            );
+        }
+
+        Map<String, Set<String>> reverseGraph = buildReverseGraph();
+
+        System.out.println();
+        System.out.println(
+                "Reverse dependencies for " + packageName + ":"
+        );
+
+        List<QueueItem> queue = new ArrayList<>();
+        Set<String> visited = new LinkedHashSet<>();
+
+        queue.add(new QueueItem(packageName, "", 0));
+        visited.add(packageName);
+
+        processReverseQueue(reverseGraph, queue, visited, 0);
+    }
+
+    private Map<String, Set<String>> buildReverseGraph() {
+        Map<String, Set<String>> reverseGraph = new LinkedHashMap<>();
+
+        for (String packageName : graph.keySet()) {
+            reverseGraph.put(packageName, new LinkedHashSet<>());
+        }
+
+        for (Map.Entry<String, Set<String>> entry : graph.entrySet()) {
+            String packageName = entry.getKey();
+
+            for (String dependency : entry.getValue()) {
+                reverseGraph.get(dependency).add(packageName);
+            }
+        }
+
+        return reverseGraph;
+    }
+
+    private void processReverseQueue(
+            Map<String, Set<String>> reverseGraph,
+            List<QueueItem> queue,
+            Set<String> visited,
+            int index
+    ) {
+        if (index >= queue.size()) {
+            return;
+        }
+
+        QueueItem current = queue.get(index);
+        Set<String> dependents = reverseGraph.get(current.packageName);
+
+        System.out.println(current.packageName + " <- " + dependents);
+
+        for (String dependent : dependents) {
+            if (visited.add(dependent)) {
+                queue.add(new QueueItem(dependent, "", current.depth + 1));
+            }
+        }
+
+        processReverseQueue(reverseGraph, queue, visited, index + 1);
     }
 
     private static class QueueItem {

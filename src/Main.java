@@ -16,11 +16,14 @@ public class Main {
 
         try {
             Config config = configReader.read(configPath);
+            String selectedPackage = args.length > 1
+                    ? args[1]
+                    : config.getPackageName();
 
             if (config.isTestMode()) {
-                runTestMode(config);
+                runTestMode(config, selectedPackage);
             } else {
-                runNpmMode(config);
+                runNpmMode(config, selectedPackage);
             }
         } catch (IOException exception) {
             System.err.println("Error:");
@@ -37,7 +40,10 @@ public class Main {
         }
     }
 
-    private static void runTestMode(Config config) throws IOException {
+    private static void runTestMode(
+            Config config,
+            String selectedPackage
+    ) throws IOException {
         GraphTestReader reader = new GraphTestReader();
         DependencyGraph dependencyGraph = new DependencyGraph();
 
@@ -51,14 +57,18 @@ public class Main {
         );
 
         dependencyGraph.print();
+        dependencyGraph.printReverseDependencies(selectedPackage);
     }
 
-    private static void runNpmMode(Config config)
-            throws IOException, InterruptedException {
+    private static void runNpmMode(
+            Config config,
+            String selectedPackage
+    ) throws IOException, InterruptedException {
         NpmRepository repository = new NpmRepository();
         DependencyGraph dependencyGraph = new DependencyGraph();
 
         dependencyGraph.buildFromNpm(config, repository);
         dependencyGraph.print();
+        dependencyGraph.printReverseDependencies(selectedPackage);
     }
 }
