@@ -43,7 +43,7 @@ public class Main {
     private static void runTestMode(
             Config config,
             String selectedPackage
-    ) throws IOException {
+    ) throws IOException, InterruptedException {
         GraphTestReader reader = new GraphTestReader();
         DependencyGraph dependencyGraph = new DependencyGraph();
 
@@ -58,6 +58,12 @@ public class Main {
 
         dependencyGraph.print();
         dependencyGraph.printReverseDependencies(selectedPackage);
+
+        GraphvizExporter exporter = new GraphvizExporter();
+        exporter.export(
+                dependencyGraph.getGraph(),
+                config.getPackageName().replace("/", "-")
+        );
     }
 
     private static void runNpmMode(
@@ -70,5 +76,11 @@ public class Main {
         dependencyGraph.buildFromNpm(config, repository);
         dependencyGraph.print();
         dependencyGraph.printReverseDependencies(selectedPackage);
+
+        GraphvizExporter exporter = new GraphvizExporter();
+        exporter.export(
+                dependencyGraph.getGraph(),
+                config.getPackageName().replace("/", "-")
+        );
     }
 }

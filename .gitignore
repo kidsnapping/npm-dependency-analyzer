@@ -4,5 +4,7 @@ out/
 *.log
 .DS_Store
 Thumbs.db
-*.iml
 .idea/
+*.iml
+*.png
+*.dot

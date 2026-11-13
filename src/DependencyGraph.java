@@ -228,4 +228,8 @@ public class DependencyGraph {
             this.depth = depth;
         }
     }
+
+    public Map<String, Set<String>> getGraph() {
+        return graph;
+    }
 }
