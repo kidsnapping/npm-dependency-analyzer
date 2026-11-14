@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class GraphTestReader {
+    private static final int MAX_SPLIT_PARTS = 2;
     public Map<String, Set<String>> read(Path filePath) throws IOException {
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             throw new IOException("Test graph file does not exist: " + filePath);
@@ -36,7 +37,7 @@ public class GraphTestReader {
             return;
         }
 
-        String[] parts = line.split(":", 2);
+        String[] parts = line.split(":", MAX_SPLIT_PARTS);
 
         if (parts.length != 2) {
             throw new IOException("Invalid graph format at line " + lineNumber);

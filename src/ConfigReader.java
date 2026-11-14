@@ -50,6 +50,9 @@ public class ConfigReader {
         return new Config(packageName, repository, testMode, version, maxDepth);
     }
 
+    private static final int SECTION_NAME_START = 1;
+    private static final int SECTION_NAME_END_OFFSET = 1;
+
     private static Map<String, String> parseFile(
             Path filePath,
             List<String> errors
@@ -62,46 +65,87 @@ public class ConfigReader {
         }
 
         List<String> lines = Files.readAllLines(filePath);
-        boolean settingsSectionFound = false;
-        boolean insideSettings = false;
+        SectionState state = new SectionState();
 
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
+        parseLines(lines, values, errors, state);
 
-            if (line.isEmpty() || line.startsWith(";") || line.startsWith("#")) {
-                continue;
-            }
-
-            if (line.startsWith("[") && line.endsWith("]")) {
-                String sectionName = line.substring(1, line.length() - 1).trim();
-
-                insideSettings = sectionName.equals("settings");
-
-                if (insideSettings) {
-                    if (settingsSectionFound) {
-                        errors.add("Line " + (i + 1) + ": duplicate [settings] section");
-                    }
-                    settingsSectionFound = true;
-                } else {
-                    errors.add("Line " + (i + 1) + ": unknown section [" + sectionName + "]");
-                }
-
-                continue;
-            }
-
-            if (!insideSettings) {
-                errors.add("Line " + (i + 1) + ": parameter must be inside [settings]");
-                continue;
-            }
-
-            parseLine(line, i + 1, values, errors);
-        }
-
-        if (!settingsSectionFound) {
+        if (!state.settingsSectionFound) {
             errors.add("Missing [settings] section");
         }
 
         return values;
+    }
+
+    private static void parseLines(
+            List<String> lines,
+            Map<String, String> values,
+            List<String> errors,
+            SectionState state
+    ) {
+        for (int i = 0; i < lines.size(); i++) {
+            processLine(lines.get(i), i + 1, values, errors, state);
+        }
+    }
+
+    private static void processLine(
+            String sourceLine,
+            int lineNumber,
+            Map<String, String> values,
+            List<String> errors,
+            SectionState state
+    ) {
+        String line = sourceLine.trim();
+
+        if (line.isEmpty() ||  line.startsWith(";") || line.startsWith("#")) {
+            return;
+        }
+
+        if (isSectionHeader(line)) {
+            state.insideSettings = processSection(
+                    line, lineNumber, errors, state
+            );
+            return;
+        }
+
+        if (!state.insideSettings) {
+            errors.add("Line " + lineNumber + ": parameter must be inside [settings]");
+            return;
+        }
+
+        parseLine(line, lineNumber, values, errors);
+    }
+
+    private static boolean isSectionHeader(String line) {
+        return line.startsWith("[") && line.endsWith("]");
+    }
+
+    private static boolean processSection(
+            String line,
+            int lineNumber,
+            List<String> errors,
+            SectionState state
+    ) {
+        String sectionName = line.substring(
+                SECTION_NAME_START,
+                line.length() - SECTION_NAME_END_OFFSET
+        ).trim();
+
+        if (!sectionName.equals("settings")) {
+            errors.add("Line " + lineNumber + ": unknown section [" + sectionName + "]");
+            return false;
+        }
+
+        if (state.settingsSectionFound) {
+            errors.add("Line " + lineNumber + ": duplicate [settings] section");
+        }
+
+        state.settingsSectionFound = true;
+        return true;
+    }
+
+    private static class SectionState {
+        private boolean settingsSectionFound;
+        private boolean insideSettings;
     }
 
     private static void parseLine(

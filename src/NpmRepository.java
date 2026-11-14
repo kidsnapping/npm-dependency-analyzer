@@ -12,6 +12,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class NpmRepository {
+    private static final int HTTP_OK_STATUS = 200;
+    private static final int DEPENDENCIES_CONTENT_GROUP = 1;
+    private static final int DEPENDENCY_NAME_GROUP = 1;
+    private static final int DEPENDENCY_VERSION_GROUP = 2;
+
     public Map<String, String> getDependencies(Config config)
             throws IOException, InterruptedException {
         if (config.isTestMode()) {
@@ -61,7 +66,7 @@ public class NpmRepository {
                 HttpResponse.BodyHandlers.ofString()
         );
 
-        if (response.statusCode() != 200) {
+        if (response.statusCode() != HTTP_OK_STATUS) {
             throw new IOException(
                     "Cannot get " + packageName + "@" + version
                             + ". HTTP status: " + response.statusCode()
@@ -99,7 +104,7 @@ public class NpmRepository {
             return dependencies;
         }
 
-        String dependenciesText = dependenciesMatcher.group(1);
+        String dependenciesText = dependenciesMatcher.group(DEPENDENCIES_CONTENT_GROUP);
 
         Pattern dependencyPattern = Pattern.compile(
                 "\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\""
@@ -109,8 +114,8 @@ public class NpmRepository {
 
         while (dependencyMatcher.find()) {
             dependencies.put(
-                    dependencyMatcher.group(1),
-                    dependencyMatcher.group(2)
+                    dependencyMatcher.group(DEPENDENCY_NAME_GROUP),
+                    dependencyMatcher.group(DEPENDENCY_VERSION_GROUP)
             );
         }
 
