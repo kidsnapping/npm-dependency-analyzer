@@ -39,7 +39,7 @@ public class GraphTestReader {
 
         String[] parts = line.split(":", MAX_SPLIT_PARTS);
 
-        if (parts.length != 2) {
+        if (parts.length != MAX_SPLIT_PARTS) {
             throw new IOException("Invalid graph format at line " + lineNumber);
         }
 
